@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 
 interface Tool {
   id: string;
+  user_id: string;
   name: string;
   url: string;
 }

@@ -1,9 +1,22 @@
 import { NextResponse } from 'next/server';
-import { getAllTools, addTool } from '@/lib/db';
+import { cookies } from 'next/headers';
+import { getAllTools, addTool, getSession } from '@/lib/db';
 
 export async function GET() {
+  const cookieStore = await cookies();
+  const sessionId = cookieStore.get('session_id')?.value;
+  
+  if (!sessionId) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  }
+  
+  const session = getSession(sessionId);
+  if (!session) {
+    return NextResponse.json({ error: 'Sesión inválida' }, { status: 401 });
+  }
+
   try {
-    const tools = getAllTools();
+    const tools = getAllTools(session.user_id);
     return NextResponse.json(tools);
   } catch (error) {
     console.error('Error fetching tools:', error);
@@ -12,6 +25,18 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const cookieStore = await cookies();
+  const sessionId = cookieStore.get('session_id')?.value;
+  
+  if (!sessionId) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  }
+  
+  const session = getSession(sessionId);
+  if (!session) {
+    return NextResponse.json({ error: 'Sesión inválida' }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const { id, name, url, category = 'General' } = body;
@@ -22,8 +47,8 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    
-    const tool = addTool({ id, name, url, category });
+
+    const tool = addTool({ id, user_id: session.user_id, name, url, category });
     return NextResponse.json(tool, { status: 201 });
   } catch (error) {
     console.error('Error adding tool:', error);

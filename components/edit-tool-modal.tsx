@@ -8,25 +8,29 @@ import { Input } from "@/components/ui/input"
 
 interface Tool {
   id: string
+  user_id: string
   name: string
   url: string
+  category?: string
 }
 
 interface EditToolModalProps {
   isOpen: boolean
   onClose: () => void
-  onEdit: (id: string, name: string, url: string) => void
+  onEdit: (id: string, name: string, url: string, category?: string) => void
   tool: Tool | null
 }
 
 export function EditToolModal({ isOpen, onClose, onEdit, tool }: EditToolModalProps) {
   const [name, setName] = useState("")
   const [url, setUrl] = useState("")
+  const [category, setCategory] = useState("")
 
   useEffect(() => {
     if (tool) {
       setName(tool.name)
       setUrl(tool.url)
+      setCategory(tool.category || "")
     }
   }, [tool])
 
@@ -37,7 +41,7 @@ export function EditToolModal({ isOpen, onClose, onEdit, tool }: EditToolModalPr
       if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
         formattedUrl = "https://" + formattedUrl
       }
-      onEdit(tool.id, name.trim(), formattedUrl)
+      onEdit(tool.id, name.trim(), formattedUrl, category || "General")
       onClose()
     }
   }
@@ -72,7 +76,7 @@ export function EditToolModal({ isOpen, onClose, onEdit, tool }: EditToolModalPr
                   <X className="w-5 h-5 text-muted-foreground" />
                 </button>
               </div>
-              
+
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-muted-foreground mb-2">
@@ -86,7 +90,7 @@ export function EditToolModal({ isOpen, onClose, onEdit, tool }: EditToolModalPr
                     className="w-full bg-secondary border-border focus:border-primary focus:ring-primary text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-muted-foreground mb-2">
                     URL
@@ -99,7 +103,20 @@ export function EditToolModal({ isOpen, onClose, onEdit, tool }: EditToolModalPr
                     className="w-full bg-secondary border-border focus:border-primary focus:ring-primary text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
-                
+
+                <div>
+                  <label className="block text-sm font-medium text-muted-foreground mb-2">
+                    Categoría
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="ej: Trabajo"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full bg-secondary border-border focus:border-primary focus:ring-primary text-foreground placeholder:text-muted-foreground"
+                  />
+                </div>
+
                 <Button
                   type="submit"
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-3 rounded-xl transition-all duration-200 flex items-center justify-center gap-2"

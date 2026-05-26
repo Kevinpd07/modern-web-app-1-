@@ -14,17 +14,6 @@ if (!fs.existsSync(dataDir)) {
 
 const db = new Database(dbPath);
 
-// Create the tools table if it doesn't exist
-db.exec(`
-  CREATE TABLE IF NOT EXISTS tools (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    url TEXT NOT NULL,
-    category TEXT DEFAULT 'General',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`);
-
 // Create the users table if it doesn't exist
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
@@ -46,8 +35,36 @@ db.exec(`
   )
 `);
 
+// Create the tools table if it doesn't exist
+db.exec(`
+  CREATE TABLE IF NOT EXISTS tools (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    url TEXT NOT NULL,
+    category TEXT DEFAULT 'General',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  )
+`);
+
+// Migration: Add user_id column to existing tools table if it doesn't exist
+try {
+  const columns = db.prepare("PRAGMA table_info(tools)").all();
+  const hasUserId = (columns as { name: string }[]).some((col: { name: string }) => col.name === 'user_id');
+  
+  if (!hasUserId) {
+    db.exec(`
+      ALTER TABLE tools ADD COLUMN user_id TEXT DEFAULT ''
+    `);
+  }
+} catch (e) {
+  console.error('Migration error:', e);
+}
+
 export interface Tool {
   id: string;
+  user_id: string;
   name: string;
   url: string;
   category: string;
@@ -68,26 +85,34 @@ export interface Session {
   created_at?: string;
 }
 
-export function getAllTools(): Tool[] {
-  const stmt = db.prepare('SELECT * FROM tools ORDER BY created_at DESC');
-  return stmt.all() as Tool[];
+export function getAllTools(userId?: string): Tool[] {
+  const stmt = db.prepare(
+    userId 
+      ? 'SELECT * FROM tools WHERE user_id = ? ORDER BY created_at DESC'
+      : 'SELECT * FROM tools ORDER BY created_at DESC'
+  );
+  return (userId ? stmt.all(userId) : stmt.all()) as Tool[];
 }
 
 export function addTool(tool: Omit<Tool, 'created_at'>): Tool {
   const stmt = db.prepare(
-    'INSERT INTO tools (id, name, url, category) VALUES (?, ?, ?, ?)'
+    'INSERT INTO tools (id, user_id, name, url, category) VALUES (?, ?, ?, ?, ?)'
   );
-  stmt.run(tool.id, tool.name, tool.url, tool.category);
+  stmt.run(tool.id, tool.user_id, tool.name, tool.url, tool.category);
   return { ...tool };
 }
 
-export function deleteTool(id: string): boolean {
-  const stmt = db.prepare('DELETE FROM tools WHERE id = ?');
-  const result = stmt.run(id);
+export function deleteTool(id: string, userId?: string): boolean {
+  const stmt = db.prepare(
+    userId 
+      ? 'DELETE FROM tools WHERE id = ? AND user_id = ?'
+      : 'DELETE FROM tools WHERE id = ?'
+  );
+  const result = userId ? stmt.run(id, userId) : stmt.run(id);
   return result.changes > 0;
 }
 
-export function updateTool(id: string, updates: Partial<Omit<Tool, 'id' | 'created_at'>>): boolean {
+export function updateTool(id: string, userId: string, updates: Partial<Omit<Tool, 'id' | 'user_id' | 'created_at'>>): boolean {
   const fields: string[] = [];
   const values: (string | undefined)[] = [];
   
@@ -106,8 +131,8 @@ export function updateTool(id: string, updates: Partial<Omit<Tool, 'id' | 'creat
   
   if (fields.length === 0) return false;
   
-  values.push(id);
-  const stmt = db.prepare(`UPDATE tools SET ${fields.join(', ')} WHERE id = ?`);
+  values.push(id, userId);
+  const stmt = db.prepare(`UPDATE tools SET ${fields.join(', ')} WHERE id = ? AND user_id = ?`);
   const result = stmt.run(...values);
   return result.changes > 0;
 }

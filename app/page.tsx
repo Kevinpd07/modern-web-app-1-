@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input"
 
 interface Tool {
   id: string
+  user_id: string
   name: string
   url: string
   category?: string
@@ -63,6 +64,7 @@ export default function HomePage() {
   const addTool = async (name: string, url: string) => {
     const newTool: Tool = {
       id: Date.now().toString(),
+      user_id: "",
       name,
       url,
       category: "General"
@@ -74,7 +76,7 @@ export default function HomePage() {
       const response = await fetch("/api/tools", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newTool)
+        body: JSON.stringify({ id: newTool.id, name, url, category: "General" })
       })
 
       if (!response.ok) {
@@ -109,9 +111,9 @@ export default function HomePage() {
     }
   }
 
-  const editTool = async (id: string, name: string, url: string) => {
+  const editTool = async (id: string, name: string, url: string, category?: string) => {
     const originalTool = tools.find(t => t.id === id)
-    const updatedTool = { ...originalTool!, name, url }
+    const updatedTool = { ...originalTool!, name, url, category: category || "General" }
     
     setTools(prev => prev.map(tool => tool.id === id ? updatedTool : tool))
 
@@ -119,7 +121,7 @@ export default function HomePage() {
       const response = await fetch(`/api/tools/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, url })
+        body: JSON.stringify({ name, url, category })
       })
 
       if (!response.ok) {
